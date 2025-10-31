@@ -1,24 +1,291 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>My Visual</title>
-  <style>
-    /* optional: responsive container */
-    .wrap { max-width: 900px; margin: 2rem auto; }
-  </style>
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross Entropy Objective Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.26.0/plotly.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .formula {
+            text-align: center;
+            font-size: 1.3em;
+            color: #555;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        .controls {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 30px;
+            align-items: center;
+            justify-content: center;
+        }
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .slider-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #444;
+            font-size: 1.1em;
+        }
+        .slider-value {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 200px;
+            height: 8px;
+            background: #ddd;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        #plot {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .info-box p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .max-info {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1 style="font-family: system-ui;">Demo Visual</h1>
-    <div id="plot" style="width:100%;height:520px;"></div>
-  </div>
-  <script>
-    const data = [{ x: [1,2,3,4], y: [10,15,13,17], mode: "lines+markers" }];
-    const layout = { margin: { t: 10 } };
-    Plotly.newPlot("plot", data, layout, {displayModeBar: false});
-  </script>
+    <div class="container">
+        <h1>Cross Entropy Objective Function</h1>
+        <div class="formula">f(y) = a·log(y) + b·log(1 − y)</div>
+        
+        <div class="controls">
+            <div class="slider-container">
+                <label class="slider-label">Parameter a</label>
+                <input type="range" id="aSlider" min="0" max="10" step="0.1" value="3">
+                <div class="slider-value" id="aValue">3.0</div>
+            </div>
+            <div class="slider-container">
+                <label class="slider-label">Parameter b</label>
+                <input type="range" id="bSlider" min="0" max="10" step="0.1" value="7">
+                <div class="slider-value" id="bValue">7.0</div>
+            </div>
+        </div>
+        
+        <div id="plot"></div>
+        
+        <div class="max-info" id="maxInfo">
+            Maximum at y = 0.300, f(y) = -2.303
+        </div>
+        
+        <div class="info-box">
+            <h3>About the Cross Entropy Objective</h3>
+            <p>This function represents a weighted log-likelihood commonly used in machine learning, particularly in binary classification.</p>
+            <p>• The maximum occurs at <strong>y* = a/(a+b)</strong></p>
+            <p>• When a > b, the maximum shifts toward y = 1</p>
+            <p>• When b > a, the maximum shifts toward y = 0</p>
+            <p>• The function is undefined at y = 0 when a > 0 and at y = 1 when b > 0</p>
+        </div>
+    </div>
+
+    <script>
+        function calculateFunction(y, a, b) {
+            if (y <= 0 || y >= 1) return null;
+            return a * Math.log(y) + b * Math.log(1 - y);
+        }
+        
+        function findMaximum(a, b) {
+            if (a + b === 0) return { y: 0.5, value: null };
+            const yMax = a / (a + b);
+            const valueMax = calculateFunction(yMax, a, b);
+            return { y: yMax, value: valueMax };
+        }
+        
+        function updatePlot() {
+            const a = parseFloat(document.getElementById('aSlider').value);
+            const b = parseFloat(document.getElementById('bSlider').value);
+            
+            // Update display values
+            document.getElementById('aValue').textContent = a.toFixed(1);
+            document.getElementById('bValue').textContent = b.toFixed(1);
+            
+            // Generate points for the function
+            const yValues = [];
+            const fValues = [];
+            
+            // Start from a small positive value to avoid log(0)
+            for (let y = 0.001; y <= 0.999; y += 0.001) {
+                yValues.push(y);
+                fValues.push(calculateFunction(y, a, b));
+            }
+            
+            // Find maximum
+            const max = findMaximum(a, b);
+            
+            // Update maximum info
+            if (max.value !== null) {
+                document.getElementById('maxInfo').innerHTML = 
+                    `Maximum at y = ${max.y.toFixed(3)}, f(y) = ${max.value.toFixed(3)}`;
+            } else {
+                document.getElementById('maxInfo').innerHTML = 
+                    `Parameters a and b are both 0`;
+            }
+            
+            // Create the plot
+            const trace1 = {
+                x: yValues,
+                y: fValues,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'f(y)',
+                line: {
+                    color: '#667eea',
+                    width: 3
+                }
+            };
+            
+            // Add maximum point
+            const trace2 = max.value !== null ? {
+                x: [max.y],
+                y: [max.value],
+                type: 'scatter',
+                mode: 'markers+text',
+                name: 'Maximum',
+                marker: {
+                    color: '#ff6b6b',
+                    size: 12,
+                    symbol: 'star'
+                },
+                text: [`Max: (${max.y.toFixed(3)}, ${max.value.toFixed(3)})`],
+                textposition: 'top center',
+                textfont: {
+                    size: 14,
+                    color: '#ff6b6b'
+                }
+            } : null;
+            
+            const data = trace2 ? [trace1, trace2] : [trace1];
+            
+            const layout = {
+                title: {
+                    text: `f(y) = ${a.toFixed(1)}·log(y) + ${b.toFixed(1)}·log(1−y)`,
+                    font: {
+                        size: 18
+                    }
+                },
+                xaxis: {
+                    title: 'y',
+                    range: [0, 1],
+                    gridcolor: '#e0e0e0',
+                    zerolinecolor: '#999'
+                },
+                yaxis: {
+                    title: 'f(y)',
+                    gridcolor: '#e0e0e0',
+                    zerolinecolor: '#999'
+                },
+                plot_bgcolor: '#fafafa',
+                paper_bgcolor: 'white',
+                height: 500,
+                margin: {
+                    l: 60,
+                    r: 40,
+                    t: 60,
+                    b: 60
+                },
+                hovermode: 'x unified',
+                showlegend: true,
+                legend: {
+                    x: 0.02,
+                    y: 0.98,
+                    bgcolor: 'rgba(255,255,255,0.9)',
+                    bordercolor: '#667eea',
+                    borderwidth: 1
+                }
+            };
+            
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+                toImageButtonOptions: {
+                    format: 'png',
+                    filename: 'cross_entropy_plot',
+                    height: 800,
+                    width: 1200,
+                    scale: 1
+                }
+            };
+            
+            Plotly.newPlot('plot', data, layout, config);
+        }
+        
+        // Add event listeners
+        document.getElementById('aSlider').addEventListener('input', updatePlot);
+        document.getElementById('bSlider').addEventListener('input', updatePlot);
+        
+        // Initial plot
+        updatePlot();
+    </script>
 </body>
 </html>
